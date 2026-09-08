@@ -9,6 +9,9 @@ const AUTOSAVE_MS = 1200;
 
 export function useEditorState() {
   const { user, page: currentPage, upsertPage, loading } = useAuth();
+  const userId = user?.id ?? "";
+  const username = user?.username ?? "";
+
   const [profile, setProfile] = useState<Profile>(() =>
     currentPage?.profile ?? { name: "", username: "", headline: "", bio: "", avatarUrl: undefined, location: undefined, role: undefined }
   );
@@ -17,10 +20,14 @@ export function useEditorState() {
   const [appearance, setAppearance] = useState<PageAppearance>(() => currentPage?.appearance ?? { ...DEFAULT_APPEARANCE });
   const [published, setPublished] = useState<boolean>(currentPage?.published ?? false);
   const [tier] = useState<Tier>(currentPage?.tier ?? (user?.tier ?? "free"));
-  const [slug, setSlug] = useState<string>(currentPage?.slug ?? (user?.username ?? ""));
+  const [slug, setSlug] = useState<string>(currentPage?.slug ?? username);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(Boolean(currentPage));
 
+  const pageIdentityRef = useRef({
+    id: currentPage?.id ?? "",
+    createdAt: currentPage?.createdAt ?? new Date().toISOString(),
+  });
   const lastPersistedRef = useRef<Page | null>(currentPage ?? null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -32,31 +39,32 @@ export function useEditorState() {
   }, [upsertPage]);
 
   const assemble = useCallback((): Page | null => {
-    if (!user) return null;
+    if (!userId) return null;
     return {
-      id: currentPage?.id ?? crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      userId: user.id,
-      slug: slug.trim() || user.username,
-      profile: { ...profile, username: slug.trim() || profile.username || user.username },
+      id: pageIdentityRef.current.id || crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      userId,
+      slug: slug.trim() || username,
+      profile: { ...profile, username: slug.trim() || profile.username || username },
       links: [...links].sort((a, b) => a.order - b.order),
       socialLinks,
       appearance,
       tier,
       published,
-      createdAt: currentPage?.createdAt ?? new Date().toISOString(),
+      createdAt: pageIdentityRef.current.createdAt,
       updatedAt: new Date().toISOString(),
     };
-  }, [user, currentPage, slug, profile, links, socialLinks, appearance, tier, published]);
+  }, [userId, username, slug, profile, links, socialLinks, appearance, tier, published]);
 
   const commit = useCallback(() => {
     const next = assemble();
     if (!next) return null;
+    if (!pageIdentityRef.current.id) pageIdentityRef.current.id = next.id;
     persist(next);
     return next;
   }, [assemble, persist]);
 
   useEffect(() => {
-    if (loading || !user || !currentPage) return;
+    if (loading || !userId || !pageIdentityRef.current.id) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       setSaving(true);
@@ -65,7 +73,7 @@ export function useEditorState() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [profile, links, socialLinks, appearance, slug, published, tier, commit, loading, user, currentPage]);
+  }, [profile, links, socialLinks, appearance, slug, published, tier, commit, loading, userId]);
 
   const addLink = useCallback((type: LinkBlock["type"] = "link") => {
     setLinks((prev) => {
@@ -130,7 +138,7 @@ export function useEditorState() {
   }, []);
 
   const resetTo = useCallback(() => {
-    const base = lastPersistedRef.current ?? currentPage ?? createEmptyPage(user?.id ?? "demo", slug, tier);
+    const base = lastPersistedRef.current ?? currentPage ?? createEmptyPage(userId || "demo", slug, tier);
     setProfile(base.profile);
     setLinks(base.links);
     setSocialLinks(base.socialLinks);
@@ -138,7 +146,7 @@ export function useEditorState() {
     setPublished(base.published);
     setSlug(base.slug);
     setSaved(true);
-  }, [currentPage, slug, tier, user]);
+  }, [currentPage, userId, slug, tier]);
 
   return {
     profile,
