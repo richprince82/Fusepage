@@ -1,7 +1,6 @@
+import Image from "next/image";
 import { type Page, type DemoUser } from "@/types";
 import { appearanceTokens } from "@/hooks/use-appearance";
-void undefined;
-void undefined;
 
 import { SocialIcon as SocialIconComp } from "@/components/ui/Icon";
 
@@ -33,11 +32,13 @@ export function PublicPage({ page, user }: { page: Page; user: DemoUser }) {
           style={{ boxShadow: `0 8px 24px ${tokens.accent}22` }}
         >
           {page.profile.avatarUrl ? (
-            <img
+            <Image
               src={page.profile.avatarUrl}
               alt=""
+              width={96}
+              height={96}
+              unoptimized
               className="h-full w-full rounded-full object-cover"
-              loading="lazy"
             />
           ) : (
             initials

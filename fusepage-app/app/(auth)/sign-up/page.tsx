@@ -1,20 +1,34 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { Suspense, useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";import { Card, CardTitle, CardDescription, CardBody, CardFooter } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Card, CardTitle, CardDescription, CardBody, CardFooter } from "@/components/ui/Card";
 
 import { useAuth } from "@/lib/store";
 import { ArrowLeftIcon } from "@/components/ui/Icon";
 
 export default function SignUpPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[var(--bg)] text-sm text-[var(--muted)]">
+          Loading…
+        </div>
+      }
+    >
+      <SignUpForm />
+    </Suspense>
+  );
+}
+
+function SignUpForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, loading: authLoading } = useAuth();
 
-  const callbackUrl = (searchParams.get("callbackUrl") ?? "/dashboard").replace(/^\/+/, "") || "dashboard";
   const isHomeReturning = searchParams.get("return") === "home";
 
   const [name, setName] = useState("");
@@ -27,11 +41,11 @@ export default function SignUpPage() {
   useEffect(() => {
     if (!authLoading) {
       if (submitted) {
-        router.replace(`/${callbackUrl}`);
+        router.replace("/onboarding");
         router.refresh();
       }
     }
-  }, [authLoading, submitted, callbackUrl, router]);
+  }, [authLoading, submitted, router]);
 
   useEffect(() => {
     if (!authLoading) nameRef.current?.focus();

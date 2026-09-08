@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { Card, CardBody, CardTitle } from "@/components/ui/Card";
 
 import { useAuth } from "@/lib/store";
 import { SparklesIcon } from "@/components/ui/Icon";
@@ -11,9 +9,6 @@ import { SparklesIcon } from "@/components/ui/Icon";
 export default function OnboardingPage() {
   const router = useRouter();
   const { user, page, upsertPage, loading } = useAuth();
-  const [ready, setReady] = useState(false);
-
-  if (!loading) setReady(true);
 
   const handleCreateFirstPage = () => {
     if (!user || !page) return;
@@ -32,7 +27,7 @@ export default function OnboardingPage() {
     router.refresh();
   };
 
-  if (loading || !ready) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-sm text-[var(--muted)]">Loading…</div>

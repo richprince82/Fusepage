@@ -24,7 +24,7 @@ export interface SocialLink {
   id: string;
   platform: string;
   handle: string;
-  url: string;
+  url?: string;
 }
 
 export interface LinkBlock {

@@ -1,7 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/store";
-import { redirect } from "next/navigation";import { Card, CardHeader, CardTitle, CardBody } from "@/components/ui/Card";
+import { Card, CardHeader, CardTitle, CardBody } from "@/components/ui/Card";
 
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -9,11 +10,10 @@ import { Avatar } from "@/components/dashboard/Avatar";
 import { PencilIcon } from "@/components/ui/Icon";
 
 export default function DashboardPage() {
-  const { user, page } = useAuth();
+  const router = useRouter();
+  const { user, page, upsertPage } = useAuth();
 
-  if (!user) {
-    redirect("/sign-in");
-  }
+  if (!user) return null;
 
   const published = page?.published ?? false;
   const slug = page?.slug ?? (user.username ?? "your-page-slug");
@@ -115,7 +115,7 @@ export default function DashboardPage() {
                 variant="primary"
                 left={<PencilIcon size={16} />}
                 className="w-full"
-                onClick={() => window.location.href = "/editor"}
+                onClick={() => router.push("/editor")}
               >
                 Edit my page
               </Button>
@@ -123,11 +123,15 @@ export default function DashboardPage() {
                 <Button
                   variant={published ? "primary" : "secondary"}
                   className="flex-1"
-                  onClick={() => {}}
+                  onClick={() => {
+                    if (page) {
+                      upsertPage({ ...page, published: !published, updatedAt: new Date().toISOString() });
+                    }
+                  }}
                 >
-                  {published ? "Page is live" : "Publish now"}
+                  {published ? "Unpublish" : "Publish now"}
                 </Button>
-                <Button variant="ghost" className="flex-1" onClick={() => window.location.href = "/analytics"}>
+                <Button variant="ghost" className="flex-1" onClick={() => router.push("/analytics")}>
                   Analytics
                 </Button>
               </div>
@@ -179,7 +183,7 @@ export default function DashboardPage() {
                     <p className="text-sm font-semibold text-[var(--ink)]">Your page is empty</p>
                     <p className="text-xs text-[var(--muted)]">Add links and a bio from the editor.</p>
                   </div>
-                  <Button variant="primary" size="md" onClick={() => window.location.href = "/editor"}>
+                  <Button variant="primary" size="md" onClick={() => router.push("/editor")}>
                     Edit now
                   </Button>
                 </div>

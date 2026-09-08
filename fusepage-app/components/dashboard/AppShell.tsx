@@ -230,13 +230,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 );
               })}
               <div className="mt-3 border-t border-[var(--border)] pt-3">
-                <div className="flex items-center gap-3 rounded-lg px-3 py-2.5">
-                  <Avatar user={user} size={34} />
-                  <div>
-                    <p className="text-sm font-semibold text-[var(--ink)] truncate">{user.name}</p>
-                    <p className="text-xs text-[var(--muted)] truncate">{user.email}</p>
+                {user && (
+                  <div className="flex items-center gap-3 rounded-lg px-3 py-2.5">
+                    <Avatar user={user} size={34} />
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--ink)] truncate">{user.name}</p>
+                      <p className="text-xs text-[var(--muted)] truncate">{user.email}</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </nav>
           </div>

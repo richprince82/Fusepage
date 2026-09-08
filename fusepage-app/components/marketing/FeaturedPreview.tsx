@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
 import { useAuth } from "@/lib/store";
 import { appearanceTokens } from "@/hooks/use-appearance";
 import { SocialIcon as SocialIconComp } from "@/components/ui/Icon";
@@ -85,9 +85,16 @@ export function FeaturedPreview() {
 
           {/* profile card */}
           <div className="flex flex-col items-center p-5 text-center">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-white text-xl font-semibold shadow-sm">
+            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-white text-xl font-semibold shadow-sm">
               {target.profile.avatarUrl ? (
-                <img src={target.profile.avatarUrl} alt="" className="h-full w-full rounded-full object-cover" />
+                <Image
+                  src={target.profile.avatarUrl}
+                  alt=""
+                  width={80}
+                  height={80}
+                  unoptimized
+                  className="h-full w-full rounded-full object-cover"
+                />
               ) : (
                 <span>{initials}</span>
               )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/store";
 import { Card, CardHeader, CardTitle, CardBody, CardFooter } from "@/components/ui/Card";
 
@@ -11,7 +12,8 @@ import { Avatar } from "@/components/dashboard/Avatar";
 import { TIER_FEATURES } from "@/lib/billing";
 
 export default function SettingsPage() {
-  const { user, logout } = useAuth();
+  const router = useRouter();
+  const { user, logout, updateUser } = useAuth();
   const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [saving, setSaving] = useState(false);
@@ -27,6 +29,7 @@ export default function SettingsPage() {
   const handleSaveProfile = async () => {
     setSaving(true);
     await new Promise((r) => setTimeout(r, 500));
+    updateUser({ name: name.trim() || user.name, email: email.trim() || user.email });
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -41,7 +44,7 @@ export default function SettingsPage() {
   const handleDelete = () => {
     if (window.confirm("This demo cannot permanently delete anything. Clearing your local session will sign you out.")) {
       logout();
-      window.location.href = "/";
+      router.replace("/");
     }
   };
 

@@ -60,9 +60,11 @@ fusepage-app/
     (auth)/
       sign-in/
       sign-up/
-    (onboarding)/
+    onboarding/
     (marketing)/
       page.tsx
+      terms/
+      privacy/
     (dashboard)/
       dashboard/
       editor/
@@ -73,7 +75,6 @@ fusepage-app/
     u/[slug]/
       page.tsx
     layout.tsx
-    page.tsx
   components/
     dashboard/
     editor/
@@ -138,5 +139,5 @@ This project is structured for Vercel. Push the repo to GitHub and import it in 
 ## Notes
 
 - Billing is a demo UX until Stripe credentials are configured.
-- Public pages are served from `/u/[slug]` and currently render from the local demo user.
+- Public pages are served from `/u/[slug]` and render the signed-in user's stored page from the browser, so the editor → public page journey works end to end for any account.
 - All colors and theming flow through Tailwind CSS variables and the appearance system in `lib/demo-data` and `hooks/use-appearance`.

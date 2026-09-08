@@ -44,7 +44,7 @@ export function useEditorState() {
       userId: user.id,
       slug: slug || user.username,
       profile: profile,
-      links: links.sort((a, b) => a.order - b.order),
+      links: [...links].sort((a, b) => a.order - b.order),
       socialLinks: socialLinks,
       appearance: appearance,
       tier,

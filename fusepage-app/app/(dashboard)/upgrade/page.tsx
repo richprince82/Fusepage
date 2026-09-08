@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/store";
 import { Card, CardHeader, CardBody, CardFooter, CardTitle } from "@/components/ui/Card";
 
@@ -9,6 +10,7 @@ import { CheckIcon } from "@/components/ui/Icon";
 import { TIER_FEATURES } from "@/lib/billing";
 
 export default function UpgradePage() {
+  const router = useRouter();
   const { user } = useAuth();
   const isSignedIn = !!user;
 
@@ -71,11 +73,11 @@ export default function UpgradePage() {
           </CardBody>
           <CardFooter>
             {isSignedIn ? (
-              <Button variant="primary" className="w-full" onClick={() => window.location.href = "/dashboard"}>
+              <Button variant="primary" className="w-full" onClick={() => router.push("/dashboard")}>
                 Go to dashboard
               </Button>
             ) : (
-              <Button variant="primary" className="w-full" onClick={() => window.location.href = "/sign-up"}>
+              <Button variant="primary" className="w-full" onClick={() => router.push("/sign-up")}>
                 Start free, upgrade later{arrowRight}
               </Button>
             )}

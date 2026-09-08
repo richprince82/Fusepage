@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useAuth } from "@/lib/store";
 import { useEditorState } from "@/hooks/use-editor-state";
 import { Card, CardHeader, CardTitle, CardBody } from "@/components/ui/Card";
@@ -11,7 +12,6 @@ import { Badge } from "@/components/ui/Badge";
 import { Pill } from "@/components/ui/Pill";
 import { FeaturedPreview } from "@/components/marketing/FeaturedPreview";
 import { LookTab } from "./look-tab";
-void undefined;
 import {
   LinkIcon,
   SocialIcon as SocialIconComp,
@@ -31,6 +31,7 @@ export default function EditorPage() {
   const editor = useEditorState();
   const [expandedLink, setExpandedLink] = useState<string | null>(null);
   const [expandedSocial, setExpandedSocial] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"links" | "social" | "look">("links");
 
   if (!user) return null;
 
@@ -44,8 +45,6 @@ export default function EditorPage() {
     <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <polyline points="9 18 15 12 9 6" />
     </svg>;
-
-  void chevronRight;
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-5">
@@ -106,116 +105,130 @@ export default function EditorPage() {
           </Card>
 
           {/* tabs */}
-          <div className="grid grid-cols-3 border-b border-[var(--border)]">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                className={`flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition-colors ${
-                  tab.key === "links"
-                    ? "border-[var(--accent)] text-[var(--ink)]"
-                    : "border-transparent text-[var(--muted)] hover:text-[var(--ink)]"
-                }`}
-              >
-                {tab.label}
-                {tab.count != null && (
-                  <span className="rounded-full bg-[var(--color-brand-soft)] px-1.5 py-0.5 text-xs text-[var(--brand)]">
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            ))}
+          <div className="grid grid-cols-3 border-b border-[var(--border)]" role="tablist" aria-label="Editor sections">
+            {tabs.map((tab) => {
+              const isActive = tab.key === activeTab;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "border-[var(--accent)] text-[var(--ink)]"
+                      : "border-transparent text-[var(--muted)] hover:text-[var(--ink)]"
+                  }`}
+                >
+                  {tab.label}
+                  {tab.count != null && (
+                    <span className="rounded-full bg-[var(--color-brand-soft)] px-1.5 py-0.5 text-xs text-[var(--brand)]">
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
-          {/* profile */}
-          <ProfileSection editor={editor} />
+          {/* profile + links */}
+          {activeTab === "links" && (
+            <>
+              <ProfileSection editor={editor} />
 
-          {/* links */}
-          <Card variant="bordered">
-            <CardHeader>
-              <CardTitle>Links</CardTitle>
-              <Button variant="ghost" size="sm" left={<PlusIcon size={16} />} onClick={() => editor.addLink()}>
-                Add link
-              </Button>
-            </CardHeader>
-            <CardBody className="space-y-2">
-              {editor.links.length === 0 ? (
-                <div className="border border-dashed border-[var(--border)] rounded-xl py-8 text-center text-sm text-[var(--muted)]">
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--brand)]">
-                    <LinkIcon size={20} />
-                  </div>
-                  <p>No links yet. Add your first link to get started.</p>
-                </div>
-              ) : (
-                <ul className="space-y-2">
-                  {editor.links.map((link) => (
-                    <LinkBlockItem
-                      key={link.id}
-                      link={link}
-                      expanded={expandedLink === link.id}
-                      onToggle={() => setExpandedLink((v) => (v === link.id ? null : link.id))}
-                      onUpdate={(patch) => editor.updateLink(link.id, patch)}
-                      onRemove={() => editor.removeLink(link.id)}
-                      onMove={(to) => editor.moveLink(link.id, to)}
-                    />
-                  ))}
-                </ul>
-              )}
-            </CardBody>
-          </Card>
+              <Card variant="bordered">
+                <CardHeader>
+                  <CardTitle>Links</CardTitle>
+                  <Button variant="ghost" size="sm" left={<PlusIcon size={16} />} onClick={() => editor.addLink()}>
+                    Add link
+                  </Button>
+                </CardHeader>
+                <CardBody className="space-y-2">
+                  {editor.links.length === 0 ? (
+                    <div className="border border-dashed border-[var(--border)] rounded-xl py-8 text-center text-sm text-[var(--muted)]">
+                      <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--brand)]">
+                        <LinkIcon size={20} />
+                      </div>
+                      <p>No links yet. Add your first link to get started.</p>
+                    </div>
+                  ) : (
+                    <ul className="space-y-2">
+                      {editor.links.map((link) => (
+                        <LinkBlockItem
+                          key={link.id}
+                          link={link}
+                          total={editor.links.length}
+                          expanded={expandedLink === link.id}
+                          onToggle={() => setExpandedLink((v) => (v === link.id ? null : link.id))}
+                          onUpdate={(patch) => editor.updateLink(link.id, patch)}
+                          onRemove={() => editor.removeLink(link.id)}
+                          onMove={(to) => editor.moveLink(link.id, to)}
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </CardBody>
+              </Card>
+            </>
+          )}
 
           {/* social */}
-          <Card variant="bordered">
-            <CardHeader>
-              <CardTitle>Social profiles</CardTitle>
-              <div className="flex gap-1">
-                {socialPlatforms.slice(0, 6).map((p) => (
-                  <button
-                    key={p.value}
-                    type="button"
-                    className="rounded-lg border border-[var(--border)] px-2 py-1 text-xs font-medium text-[var(--ink)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--accent)]"
-                    onClick={() => editor.addSocial(p.value)}
-                    aria-label={`Add ${p.label}`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </CardHeader>
-            <CardBody className="space-y-2">
-              {editor.socialLinks.length === 0 ? (
-                <div className="border border-dashed border-[var(--border)] rounded-xl py-8 text-center text-sm text-[var(--muted)]">
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--brand)]">
-                    <SocialIconComp platform="twitter" size={20} />
-                  </div>
-                  <p>Connect social profiles so visitors can follow you.</p>
-                </div>
-              ) : (
-                <ul className="space-y-2">
-                  {editor.socialLinks.map((social) => (
-                    <SocialBlockItem
-                      key={social.id}
-                      social={social}
-                      expanded={expandedSocial === social.id}
-                      onToggle={() => setExpandedSocial((v) => (v === social.id ? null : social.id))}
-                      onUpdate={(patch) => editor.updateSocial(social.id, patch)}
-                      onRemove={() => editor.removeSocial(social.id)}
-                    />
+          {activeTab === "social" && (
+            <Card variant="bordered">
+              <CardHeader>
+                <CardTitle>Social profiles</CardTitle>
+                <div className="flex gap-1">
+                  {socialPlatforms.slice(0, 6).map((p) => (
+                    <button
+                      key={p.value}
+                      type="button"
+                      className="rounded-lg border border-[var(--border)] px-2 py-1 text-xs font-medium text-[var(--ink)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--accent)]"
+                      onClick={() => editor.addSocial(p.value)}
+                      aria-label={`Add ${p.label}`}
+                    >
+                      {p.label}
+                    </button>
                   ))}
-                </ul>
-              )}
-            </CardBody>
-          </Card>
+                </div>
+              </CardHeader>
+              <CardBody className="space-y-2">
+                {editor.socialLinks.length === 0 ? (
+                  <div className="border border-dashed border-[var(--border)] rounded-xl py-8 text-center text-sm text-[var(--muted)]">
+                    <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--brand)]">
+                      <SocialIconComp platform="twitter" size={20} />
+                    </div>
+                    <p>Connect social profiles so visitors can follow you.</p>
+                  </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {editor.socialLinks.map((social) => (
+                      <SocialBlockItem
+                        key={social.id}
+                        social={social}
+                        expanded={expandedSocial === social.id}
+                        onToggle={() => setExpandedSocial((v) => (v === social.id ? null : social.id))}
+                        onUpdate={(patch) => editor.updateSocial(social.id, patch)}
+                        onRemove={() => editor.removeSocial(social.id)}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </CardBody>
+            </Card>
+          )}
+
+          {/* look & feel */}
+          {activeTab === "look" && (
+            <LookTab
+              appearance={editor.appearance}
+              onAppearanceChange={(patch) => editor.setAppearance((prev) => ({ ...prev, ...patch }))}
+            />
+          )}
         </div>
 
-        {/* preview and look */}
+        {/* preview */}
         <div className="flex flex-col gap-6">
-          {/* look & feel */}
-          <LookTab
-            appearance={editor.appearance}
-            onAppearanceChange={(patch) => editor.setAppearance((prev) => ({ ...prev, ...patch }))}
-          />
-
           {/* preview */}
           <Card variant="bordered">
             <CardHeader>
@@ -244,9 +257,16 @@ function ProfileSection({ editor }: { editor: ReturnType<typeof useEditorState> 
       </CardHeader>
       <CardBody className="space-y-4">
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-white text-xl font-semibold shadow-sm">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-white text-xl font-semibold shadow-sm">
             {editor.profile.avatarUrl ? (
-              <img src={editor.profile.avatarUrl} alt="" className="h-full w-full rounded-full object-cover" />
+              <Image
+                src={editor.profile.avatarUrl}
+                alt=""
+                width={64}
+                height={64}
+                unoptimized
+                className="h-full w-full rounded-full object-cover"
+              />
             ) : (
               <span>
                 {editor.profile.name
@@ -317,6 +337,7 @@ function ProfileSection({ editor }: { editor: ReturnType<typeof useEditorState> 
 
 function LinkBlockItem({
   link,
+  total,
   expanded,
   onToggle,
   onUpdate,
@@ -324,6 +345,7 @@ function LinkBlockItem({
   onMove,
 }: {
   link: { id: string; type: "link" | "social" | "featured"; title: string; url?: string; description?: string; visible: boolean; order: number };
+  total: number;
   expanded: boolean;
   onToggle: () => void;
   onUpdate: (patch: Partial<typeof link>) => void;
@@ -334,13 +356,6 @@ function LinkBlockItem({
   const [localTitle, setLocalTitle] = useState(link.title);
   const [localUrl, setLocalUrl] = useState(link.url ?? "");
   const [localDescription, setLocalDescription] = useState(link.description ?? "");
-
-  const typeIcon =
-    localType === "featured"
-      ? FeaturedIcon
-      : localType === "social"
-        ? SocialIconComp
-        : LinkIcon;
 
   const chevron = (
     <ChevronDownIcon
@@ -365,7 +380,13 @@ function LinkBlockItem({
           <GripVerticalIcon size={16} />
         </button>
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--muted)]">
-          <typeIcon size={18} />
+          {localType === "featured" ? (
+            <FeaturedIcon size={18} />
+          ) : localType === "social" ? (
+            <SocialIconComp platform="twitter" size={18} />
+          ) : (
+            <LinkIcon size={18} />
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-[var(--ink)]">
@@ -450,11 +471,8 @@ function LinkBlockItem({
               variant="ghost"
               size="sm"
               className="text-[var(--muted)]"
-              onClick={() => {
-                const total = 5;
-                const current = Math.max(0, Math.min(total, link.order));
-                onMove(current > 0 ? current - 1 : 0);
-              }}
+              disabled={link.order <= 0}
+              onClick={() => onMove(Math.max(0, link.order - 1))}
             >
               Move up
             </Button>
@@ -462,11 +480,8 @@ function LinkBlockItem({
               variant="ghost"
               size="sm"
               className="text-[var(--muted)]"
-              onClick={() => {
-                const total = 5;
-                const current = Math.max(0, Math.min(total, link.order));
-                onMove(current < total ? current + 1 : total);
-              }}
+              disabled={link.order >= total - 1}
+              onClick={() => onMove(Math.min(total - 1, link.order + 1))}
             >
               Move down
             </Button>

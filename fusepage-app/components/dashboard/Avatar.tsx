@@ -1,7 +1,5 @@
+import Image from "next/image";
 import { type DemoUser } from "@/types";
-void undefined;
-void undefined;
-
 
 interface AvatarProps {
   user: DemoUser;
@@ -20,16 +18,18 @@ export function Avatar({ user, size = 36, className = "" }: AvatarProps) {
 
   if (user.avatarUrl) {
     return (
-      <img
+      <Image
         alt=""
         src={user.avatarUrl}
+        width={size}
+        height={size}
+        unoptimized
         className={`rounded-full object-cover ${className}`}
         style={{
           width: size,
           height: size,
           flexShrink: 0,
         }}
-        loading="lazy"
       />
     );
   }

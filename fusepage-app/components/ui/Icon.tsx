@@ -1,3 +1,5 @@
+import type { ReactElement } from "react";
+
 export function Icon({
   name,
   size = 16,
@@ -10,7 +12,7 @@ export function Icon({
 }) {
   void className;
   void svgProps;
-  const icons: Record<string, JSX.Element> = {
+  const icons: Record<string, ReactElement> = {
     external: (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...svgProps}>
         <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -132,7 +134,7 @@ export function Icon({
 }
 
 export function SocialIcon({ platform, size = 20, className = "" }: { platform: string; size?: number; className?: string }) {
-  const icons: Record<string, JSX.Element> = {
+  const icons: Record<string, ReactElement> = {
     twitter: (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />

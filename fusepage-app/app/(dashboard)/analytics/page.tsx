@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/store";
 import { Card, CardHeader, CardTitle, CardBody, CardFooter } from "@/components/ui/Card";
 
@@ -11,6 +12,7 @@ import { demoPeriods } from "@/lib/demo-data";
 type Period = "today" | "week";
 
 export default function AnalyticsPage() {
+  const router = useRouter();
   const { page } = useAuth();
   const [period, setPeriod] = useState<Period>("week");
 
@@ -25,11 +27,6 @@ export default function AnalyticsPage() {
   const views = data.totalViews;
   const clicks = data.totalClicks;
   const ctr = views > 0 ? Math.round((clicks / views) * 100) : 0;
-
-  const chevronDown =
-    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="6 9 12 15 18 9" />
-    </svg>;
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 p-5">
@@ -87,7 +84,7 @@ export default function AnalyticsPage() {
               Publish your page to see real views and clicks here. Until then, this dashboard shows demo data from a typical week.
             </p>
             <CardFooter className="mt-6 flex justify-center">
-              <Button variant="primary" size="md" onClick={() => window.location.href = "/editor"} left={chevronDown}>
+              <Button variant="primary" size="md" onClick={() => router.push("/editor")}>
                 Publish your page
               </Button>
             </CardFooter>

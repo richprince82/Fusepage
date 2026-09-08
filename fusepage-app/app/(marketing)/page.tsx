@@ -84,7 +84,7 @@ const FAQ = [
   },
 ];
 
-function SectionHeading({ eyebrow, title, subtitle }: { eyebrow: string; title: string; subtitle: string }) {
+function SectionHeading({ eyebrow, title, subtitle }: { eyebrow: string; title: string; subtitle?: string }) {
   return (
     <div>
       <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">{eyebrow}</p>
@@ -127,7 +127,7 @@ function TestimonialCard({ quote, name, role }: { quote: string; name: string; r
 function FAQItem({ question, answer }: { question: string; answer: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <details className="group rounded-xl border border-[var(--border)] bg-white" open={open} onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open === "open")}>
+    <details className="group rounded-xl border border-[var(--border)] bg-white" open={open} onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-5 py-4 select-none text-left focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
         <span className="text-sm font-semibold text-[var(--ink)]">{question}</span>
         <ArrowRightIcon
@@ -249,7 +249,7 @@ export default function MarketingPage() {
                 <Link href="/dashboard">
                   <Button variant="primary" size="lg" className="w-full sm:w-auto">
                     Go to your dashboard
-                    <ArrowRightIcon size={16} right />
+                    <ArrowRightIcon size={16} />
                   </Button>
                 </Link>
               ) : (
@@ -257,7 +257,7 @@ export default function MarketingPage() {
                   <Link href="/sign-up">
                     <Button variant="primary" size="lg" className="w-full sm:w-auto">
                       Start for free
-                      <ArrowRightIcon size={16} right />
+                      <ArrowRightIcon size={16} />
                     </Button>
                   </Link>
                   <Link href="/sign-in">
@@ -389,7 +389,7 @@ export default function MarketingPage() {
                         <Link href={tier === "free" ? "/sign-up" : "/upgrade"}>
                           <Button variant={plan.mostPopular ? "primary" : "secondary"} size="md" className="w-full">
                             {tier === "free" ? "Start free" : "Upgrade to Pro"}
-                            <ArrowRightIcon size={16} right />
+                            <ArrowRightIcon size={16} />
                           </Button>
                         </Link>
                       )}
