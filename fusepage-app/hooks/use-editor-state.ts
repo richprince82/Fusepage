@@ -8,7 +8,7 @@ import { createEmptyPage, DEFAULT_APPEARANCE } from "@/lib/demo-data";
 const AUTOSAVE_MS = 1200;
 
 export function useEditorState() {
-  const { user, page: currentPage, upsertPage } = useAuth();
+  const { user, page: currentPage, upsertPage, loading } = useAuth();
   const [profile, setProfile] = useState<Profile>(() =>
     currentPage?.profile ?? { name: "", username: "", headline: "", bio: "", avatarUrl: undefined, location: undefined, role: undefined }
   );
@@ -18,45 +18,63 @@ export function useEditorState() {
   const [published, setPublished] = useState<boolean>(currentPage?.published ?? false);
   const [tier, setTier] = useState<Tier>(currentPage?.tier ?? (user?.tier ?? "free"));
   const [slug, setSlug] = useState<string>(currentPage?.slug ?? (user?.username ?? ""));
-
-  const lastPersistedRef = useRef<Page | null>(currentPage ?? null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  const lastPersistedRef = useRef<Page | null>(currentPage ?? null);
+  const hydratedPageIdRef = useRef<string | null>(currentPage?.id ?? null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const persist = useCallback(
-    (next: Page) => {
-      lastPersistedRef.current = next;
-      upsertPage(next);
-      setPublished(next.published);
-      setTier(next.tier);
-      setSlug(next.slug);
-      setSaved(true);
-      setSaving(false);
-    },
-    [upsertPage]
-  );
+  // Hydrate local editor state exactly once when the persisted page becomes available.
+  // Subsequent autosaves keep the same page id, so they do not clobber in-progress edits.
+  useEffect(() => {
+    if (!currentPage || hydratedPageIdRef.current === currentPage.id) return;
+    hydratedPageIdRef.current = currentPage.id;
+    lastPersistedRef.current = currentPage;
+    setProfile(currentPage.profile);
+    setLinks(currentPage.links);
+    setSocialLinks(currentPage.socialLinks);
+    setAppearance(currentPage.appearance);
+    setPublished(currentPage.published);
+    setTier(currentPage.tier);
+    setSlug(currentPage.slug);
+    setSaved(true);
+  }, [currentPage]);
 
-  const commit = useCallback(() => {
-    if (!user) return;
-    const assembled: Page = {
+  const persist = useCallback((next: Page) => {
+    lastPersistedRef.current = next;
+    upsertPage(next);
+    setSaved(true);
+    setSaving(false);
+  }, [upsertPage]);
+
+  const assemble = useCallback((): Page | null => {
+    if (!user) return null;
+    return {
       id: currentPage?.id ?? crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       userId: user.id,
-      slug: slug || user.username,
-      profile: profile,
+      slug: slug.trim() || user.username,
+      profile: { ...profile, username: slug.trim() || profile.username || user.username },
       links: [...links].sort((a, b) => a.order - b.order),
-      socialLinks: socialLinks,
-      appearance: appearance,
+      socialLinks,
+      appearance,
       tier,
       published,
       createdAt: currentPage?.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    persist(assembled);
-    return assembled;
-  }, [user, currentPage, slug, profile, links, socialLinks, appearance, tier, published, persist]);
+  }, [user, currentPage, slug, profile, links, socialLinks, appearance, tier, published]);
+
+  const commit = useCallback(() => {
+    const next = assemble();
+    if (!next) return null;
+    persist(next);
+    return next;
+  }, [assemble, persist]);
 
   useEffect(() => {
+    if (loading || !user || !hydratedPageIdRef.current) return;
+    setSaved(false);
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       setSaving(true);
@@ -65,12 +83,12 @@ export function useEditorState() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [profile, links, socialLinks, appearance, slug, published, tier, commit]);
+  }, [profile, links, socialLinks, appearance, slug, published, tier, commit, loading, user]);
 
-  const addLink = useCallback(
-    (type: LinkBlock["type"] = "link") => {
-      const order = links.length ? Math.max(...links.map((l) => l.order)) + 1 : 0;
-      const newLink: LinkBlock = {
+  const addLink = useCallback((type: LinkBlock["type"] = "link") => {
+    setLinks((prev) => {
+      const order = prev.length ? Math.max(...prev.map((l) => l.order)) + 1 : 0;
+      return [...prev, {
         id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
         type,
         title: "",
@@ -79,22 +97,17 @@ export function useEditorState() {
         icon: undefined,
         visible: true,
         order,
-      };
-      setLinks((prev) => [...prev, newLink]);
-    },
-    [links]
-  );
-
-  const removeLink = useCallback((id: string) => {
-    setLinks((prev) => prev.filter((l) => l.id !== id));
+      }];
+    });
   }, []);
 
-  const updateLink = useCallback(
-    (id: string, patch: Partial<LinkBlock>) => {
-      setLinks((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
-    },
-    []
-  );
+  const removeLink = useCallback((id: string) => {
+    setLinks((prev) => prev.filter((l) => l.id !== id).map((l, i) => ({ ...l, order: i })));
+  }, []);
+
+  const updateLink = useCallback((id: string, patch: Partial<LinkBlock>) => {
+    setLinks((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  }, []);
 
   const moveLink = useCallback((from: string, to: number) => {
     setLinks((prev) => {
@@ -107,24 +120,18 @@ export function useEditorState() {
     });
   }, []);
 
-  const addSocial = useCallback(
-    (platform: string) => {
-      const handle = "";
-      const existing = socialLinks.find((s) => s.platform === platform);
-      if (existing) {
-        setSocialLinks((prev) => prev.map((s) => (s.platform === platform ? { ...s, handle: "", url: undefined } : s)));
-        return;
-      }
-      const newSocial: SocialLink = {
+  const addSocial = useCallback((platform: string) => {
+    setSocialLinks((prev) => {
+      const existing = prev.find((s) => s.platform === platform);
+      if (existing) return prev;
+      return [...prev, {
         id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
         platform,
-        handle,
+        handle: "",
         url: undefined,
-      };
-      setSocialLinks((prev) => [...prev, newSocial]);
-    },
-    [socialLinks]
-  );
+      }];
+    });
+  }, []);
 
   const updateSocial = useCallback((id: string, patch: Partial<SocialLink>) => {
     setSocialLinks((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -132,10 +139,6 @@ export function useEditorState() {
 
   const removeSocial = useCallback((id: string) => {
     setSocialLinks((prev) => prev.filter((s) => s.id !== id));
-  }, []);
-
-  const toggleLinkVisibility = useCallback((id: string) => {
-    setLinks((prev) => prev.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l)));
   }, []);
 
   const resetTo = useCallback(() => {
@@ -148,7 +151,7 @@ export function useEditorState() {
     setTier(base.tier);
     setSlug(base.slug);
     setSaved(true);
-  }, [currentPage, lastPersistedRef, slug, tier, user]);
+  }, [currentPage, slug, tier, user]);
 
   return {
     profile,
@@ -160,7 +163,7 @@ export function useEditorState() {
     appearance,
     setAppearance,
     published,
-    setPublished: setPublished,
+    setPublished,
     tier,
     slug,
     setSlug,
@@ -173,8 +176,8 @@ export function useEditorState() {
     addSocial,
     updateSocial,
     removeSocial,
-    toggleLinkVisibility,
     resetTo,
+    assemble,
     commit,
   };
 }
