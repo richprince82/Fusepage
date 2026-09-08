@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/store";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { pageThemes } from "@/lib/demo-data";
-import { type LinkBlock, type PageTheme } from "@/types";
+import { type DemoUser, type LinkBlock, type Page, type PageTheme } from "@/types";
 
 const STEPS = ["Username", "Profile", "Theme", "Links", "Preview"];
 
@@ -22,30 +22,6 @@ const normalizeSlug = (value: string) =>
 export default function OnboardingPage() {
   const router = useRouter();
   const { user, page, upsertPage, loading } = useAuth();
-  const [step, setStep] = useState(0);
-  const [slug, setSlug] = useState("");
-  const [name, setName] = useState("");
-  const [headline, setHeadline] = useState("");
-  const [bio, setBio] = useState("");
-  const [theme, setTheme] = useState<PageTheme>("clean");
-  const [links, setLinks] = useState<Array<{ title: string; url: string }>>([
-    { title: "", url: "" },
-  ]);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user || !page) return;
-    setSlug((current) => current || page.slug || user.username);
-    setName((current) => current || page.profile.name || user.name);
-    setHeadline((current) => current || page.profile.headline);
-    setBio((current) => current || page.profile.bio);
-    setTheme(page.appearance.theme);
-  }, [user, page]);
-
-  const validLinks = useMemo(
-    () => links.filter((item) => item.title.trim() || item.url.trim()),
-    [links]
-  );
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-[var(--muted)]">Loading onboarding…</div>;
@@ -60,6 +36,29 @@ export default function OnboardingPage() {
       </div>
     );
   }
+
+  return <OnboardingFlow key={page.id} user={user} page={page} onSave={upsertPage} />;
+}
+
+function OnboardingFlow({ user, page, onSave }: { user: DemoUser; page: Page; onSave: (next: Page) => void }) {
+  const router = useRouter();
+  const [step, setStep] = useState(0);
+  const [slug, setSlug] = useState(page.slug || user.username);
+  const [name, setName] = useState(page.profile.name || user.name);
+  const [headline, setHeadline] = useState(page.profile.headline);
+  const [bio, setBio] = useState(page.profile.bio);
+  const [theme, setTheme] = useState<PageTheme>(page.appearance.theme);
+  const [links, setLinks] = useState<Array<{ title: string; url: string }>>(
+    page.links.length > 0
+      ? page.links.slice(0, 4).map((item) => ({ title: item.title, url: item.url ?? "" }))
+      : [{ title: "", url: "" }]
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  const validLinks = useMemo(
+    () => links.filter((item) => item.title.trim() || item.url.trim()),
+    [links]
+  );
 
   const validateCurrentStep = () => {
     setError(null);
@@ -96,7 +95,7 @@ export default function OnboardingPage() {
     }));
 
     const normalized = normalizeSlug(slug);
-    upsertPage({
+    onSave({
       ...page,
       slug: normalized,
       profile: {
@@ -154,14 +153,7 @@ export default function OnboardingPage() {
                     <h1 className="text-2xl font-semibold text-[var(--ink)]">Choose your public URL</h1>
                     <p className="mt-2 text-sm text-[var(--muted)]">Keep it short and easy to remember. You can change it later.</p>
                   </div>
-                  <Input
-                    label="Username"
-                    value={slug}
-                    onChange={(event) => setSlug(normalizeSlug(event.target.value))}
-                    placeholder="your-name"
-                    hint={`Your page will live at /u/${normalizeSlug(slug) || "your-name"}`}
-                    autoFocus
-                  />
+                  <Input label="Username" value={slug} onChange={(event) => setSlug(normalizeSlug(event.target.value))} placeholder="your-name" hint={`Your page will live at /u/${normalizeSlug(slug) || "your-name"}`} autoFocus />
                 </>
               )}
 
@@ -185,13 +177,7 @@ export default function OnboardingPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {pageThemes.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setTheme(option.value)}
-                        aria-pressed={theme === option.value}
-                        className={`min-h-24 rounded-xl border p-3 text-left transition ${theme === option.value ? "border-[var(--accent)] ring-2 ring-[var(--accent)]/20" : "border-[var(--border)] hover:border-[var(--border-strong)]"}`}
-                      >
+                      <button key={option.value} type="button" onClick={() => setTheme(option.value)} aria-pressed={theme === option.value} className={`min-h-24 rounded-xl border p-3 text-left transition ${theme === option.value ? "border-[var(--accent)] ring-2 ring-[var(--accent)]/20" : "border-[var(--border)] hover:border-[var(--border-strong)]"}`}>
                         <span className="text-sm font-semibold text-[var(--ink)]">{option.label}</span>
                         <span className="mt-6 block h-3 rounded-full bg-[var(--color-brand-soft)]" />
                       </button>
@@ -237,11 +223,7 @@ export default function OnboardingPage() {
 
               <div className="flex flex-col-reverse gap-3 border-t border-[var(--border)] pt-5 sm:flex-row sm:justify-between">
                 <Button variant="ghost" disabled={step === 0} onClick={() => { setError(null); setStep((value) => Math.max(0, value - 1)); }}>Back</Button>
-                {step < STEPS.length - 1 ? (
-                  <Button onClick={next}>Continue</Button>
-                ) : (
-                  <Button onClick={finish}>Finish and open editor</Button>
-                )}
+                {step < STEPS.length - 1 ? <Button onClick={next}>Continue</Button> : <Button onClick={finish}>Finish and open editor</Button>}
               </div>
             </CardBody>
           </Card>
@@ -253,9 +235,7 @@ export default function OnboardingPage() {
                 <h2 className="mt-4 font-semibold text-[var(--ink)]">{name || user.name || "Your name"}</h2>
                 <p className="mt-1 text-xs text-[var(--muted)]">{headline || "Your headline appears here"}</p>
                 <div className="mt-5 space-y-2">
-                  {(validLinks.length ? validLinks : [{ title: "Your first link", url: "" }]).slice(0, 3).map((item, index) => (
-                    <div key={index} className="rounded-xl border border-[var(--border)] bg-white px-3 py-3 text-sm font-medium text-[var(--ink)]">{item.title || "Untitled link"}</div>
-                  ))}
+                  {(validLinks.length ? validLinks : [{ title: "Your first link", url: "" }]).slice(0, 3).map((item, index) => <div key={index} className="rounded-xl border border-[var(--border)] bg-white px-3 py-3 text-sm font-medium text-[var(--ink)]">{item.title || "Untitled link"}</div>)}
                 </div>
               </div>
               <p className="mt-4 text-center text-xs text-[var(--muted)]">Preview updates as you set up your page.</p>
