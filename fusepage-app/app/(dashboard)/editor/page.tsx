@@ -1,490 +1,234 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
+import { useState } from "react";
 import { useAuth } from "@/lib/store";
 import { useEditorState } from "@/hooks/use-editor-state";
-import { Card, CardHeader, CardTitle, CardBody } from "@/components/ui/Card";
+import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Input";
-import { Badge } from "@/components/ui/Badge";
-import { Pill } from "@/components/ui/Pill";
+import { Input, Select, Textarea } from "@/components/ui/Input";
 import { FeaturedPreview } from "@/components/marketing/FeaturedPreview";
 import { LookTab } from "./look-tab";
-import {
-  LinkIcon,
-  SocialIcon as SocialIconComp,
-  FeaturedIcon,
-  TrashIcon,
-  PlusIcon,
-  EyeIcon,
-  EyeOffIcon,
-  GripVerticalIcon,
-  ChevronDownIcon,
-  SparklesIcon,
-} from "@/components/ui/Icon";
-import { socialPlatforms, linkTypeOptions } from "@/lib/demo-data";
+import { PlusIcon, TrashIcon, EyeIcon, EyeOffIcon, LinkIcon, SocialIcon } from "@/components/ui/Icon";
+import { linkTypeOptions, socialPlatforms } from "@/lib/demo-data";
+import { TIER_FEATURES } from "@/lib/billing";
+import { type LinkBlock, type SocialLink, type PageAppearance } from "@/types";
+
+const normalizeSlug = (value: string) =>
+  value.toLowerCase().trim().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
 
 export default function EditorPage() {
   const { user } = useAuth();
   const editor = useEditorState();
-  const [expandedLink, setExpandedLink] = useState<string | null>(null);
-  const [expandedSocial, setExpandedSocial] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"links" | "social" | "look">("links");
 
   if (!user) return null;
 
-  const tabs = [
-    { key: "links" as const, label: "Links", count: editor.links.length },
-    { key: "social" as const, label: "Social", count: editor.socialLinks.length },
-    { key: "look" as const, label: "Look & feel", count: null },
-  ];
+  const previewPage = editor.assemble();
+  const freeLinkLimit = TIER_FEATURES.free.limits.links;
+  const atFreeLinkLimit = editor.tier === "free" && editor.links.length >= freeLinkLimit;
+  const allowedFreeThemes = new Set(TIER_FEATURES.free.limits.themes);
 
-  const chevronRight =
-    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="9 18 15 12 9 6" />
-    </svg>;
+  const updateAppearance = (patch: Partial<PageAppearance>) => {
+    if (editor.tier === "free" && patch.theme && !allowedFreeThemes.has(patch.theme)) return;
+    editor.setAppearance((current) => ({ ...current, ...patch }));
+  };
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 p-5">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">Edit page</h1>
-        <p className="mt-1 text-[var(--muted)]">
-          Update your profile, links, and appearance. Changes save automatically.
-        </p>
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">Edit page</h1>
+          <p className="mt-1 text-[var(--muted)]">Profile, links and appearance save automatically.</p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-[var(--muted)]" aria-live="polite">
+          <span className={`h-2 w-2 rounded-full ${editor.saving ? "bg-amber-500" : editor.saved ? "bg-emerald-500" : "bg-slate-300"}`} />
+          {editor.saving ? "Saving…" : editor.saved ? "Saved" : "Waiting for changes"}
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-        {/* editor panel */}
-        <div className="flex flex-col gap-6">
-          {/* publish bar */}
-          <Card variant="elevated">
-            <CardBody className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-brand-soft)] text-[var(--brand)]">
-                  <SparklesIcon size={18} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-[var(--ink)]">{editor.published ? "Page is live" : "Draft"}</p>
-                  <p className="text-xs text-[var(--muted)]">
-                    {editor.published
-                      ? `Published at fusepage.app/${editor.slug}`
-                      : "Publish to make this page visible"}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-1 gap-2 sm:ml-auto">
-                <Button
-                  variant={editor.published ? "secondary" : "primary"}
-                  className="flex-1"
-                  onClick={() => editor.setPublished((v) => !v)}
-                  left={editor.published ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-                >
-                  {editor.published ? "Unpublish" : "Publish"}
-                </Button>
-                <Button
-                  variant="ghost"
-                  disabled={editor.saving}
-                  className="flex items-center justify-center gap-1"
-                >
-                  {editor.saving ? (
-                    <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                  ) : editor.saved ? (
-                    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mr-1.5">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  ) : chevronRight}
-                  {editor.saving ? "Saving…" : editor.saved ? "Saved" : "Unsaved"}
-                </Button>
-              </div>
-            </CardBody>
-          </Card>
+      <Card variant="elevated">
+        <CardBody className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-[var(--ink)]">{editor.published ? "Your page is live" : "Your page is a draft"}</p>
+            <p className="mt-1 text-xs text-[var(--muted)]">/u/{editor.slug || user.username}</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant={editor.published ? "secondary" : "primary"} onClick={() => editor.setPublished((value) => !value)}>
+              {editor.published ? <><EyeOffIcon size={16} /> Unpublish</> : <><EyeIcon size={16} /> Publish</>}
+            </Button>
+            <Button variant="ghost" onClick={() => editor.resetTo()}>Reset unsaved</Button>
+          </div>
+        </CardBody>
+      </Card>
 
-          {/* tabs */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="min-w-0 space-y-6">
           <div className="grid grid-cols-3 border-b border-[var(--border)]" role="tablist" aria-label="Editor sections">
-            {tabs.map((tab) => {
-              const isActive = tab.key === activeTab;
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition-colors ${
-                    isActive
-                      ? "border-[var(--accent)] text-[var(--ink)]"
-                      : "border-transparent text-[var(--muted)] hover:text-[var(--ink)]"
-                  }`}
-                >
-                  {tab.label}
-                  {tab.count != null && (
-                    <span className="rounded-full bg-[var(--color-brand-soft)] px-1.5 py-0.5 text-xs text-[var(--brand)]">
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            {([
+              ["links", `Links (${editor.links.length})`],
+              ["social", `Social (${editor.socialLinks.length})`],
+              ["look", "Look & feel"],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === key}
+                onClick={() => setActiveTab(key)}
+                className={`min-h-11 border-b-2 px-3 py-3 text-sm font-medium transition ${activeTab === key ? "border-[var(--accent)] text-[var(--ink)]" : "border-transparent text-[var(--muted)] hover:text-[var(--ink)]"}`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
-          {/* profile + links */}
           {activeTab === "links" && (
             <>
-              <ProfileSection editor={editor} />
+              <ProfileEditor editor={editor} />
 
               <Card variant="bordered">
                 <CardHeader>
-                  <CardTitle>Links</CardTitle>
-                  <Button variant="ghost" size="sm" left={<PlusIcon size={16} />} onClick={() => editor.addLink()}>
-                    Add link
-                  </Button>
+                  <div>
+                    <CardTitle>Links & featured content</CardTitle>
+                    {editor.tier === "free" && <p className="mt-1 text-xs text-[var(--muted)]">Free plan: {editor.links.length}/{freeLinkLimit} links.</p>}
+                  </div>
+                  <Button variant="secondary" size="sm" disabled={atFreeLinkLimit} onClick={() => editor.addLink()} left={<PlusIcon size={16} />}>Add link</Button>
                 </CardHeader>
-                <CardBody className="space-y-2">
+                <CardBody className="space-y-3">
                   {editor.links.length === 0 ? (
-                    <div className="border border-dashed border-[var(--border)] rounded-xl py-8 text-center text-sm text-[var(--muted)]">
-                      <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--brand)]">
-                        <LinkIcon size={20} />
-                      </div>
-                      <p>No links yet. Add your first link to get started.</p>
+                    <div className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center">
+                      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--brand)]"><LinkIcon size={18} /></div>
+                      <p className="mt-3 text-sm font-semibold text-[var(--ink)]">No links yet</p>
+                      <p className="mt-1 text-xs text-[var(--muted)]">Add a link or featured block to build your page.</p>
                     </div>
                   ) : (
-                    <ul className="space-y-2">
-                      {editor.links.map((link) => (
-                        <LinkBlockItem
-                          key={link.id}
-                          link={link}
-                          total={editor.links.length}
-                          expanded={expandedLink === link.id}
-                          onToggle={() => setExpandedLink((v) => (v === link.id ? null : link.id))}
-                          onUpdate={(patch) => editor.updateLink(link.id, patch)}
-                          onRemove={() => editor.removeLink(link.id)}
-                          onMove={(to) => editor.moveLink(link.id, to)}
-                        />
-                      ))}
-                    </ul>
+                    editor.links.map((link) => (
+                      <LinkEditorItem
+                        key={link.id}
+                        link={link}
+                        total={editor.links.length}
+                        onUpdate={(patch) => editor.updateLink(link.id, patch)}
+                        onRemove={() => editor.removeLink(link.id)}
+                        onMove={(index) => editor.moveLink(link.id, index)}
+                      />
+                    ))
                   )}
+                  {atFreeLinkLimit && <p className="text-xs text-amber-700">You reached the Free plan link limit. Upgrade to Pro for up to {TIER_FEATURES.pro.limits.links} links.</p>}
                 </CardBody>
               </Card>
             </>
           )}
 
-          {/* social */}
           {activeTab === "social" && (
             <Card variant="bordered">
               <CardHeader>
                 <CardTitle>Social profiles</CardTitle>
-                <div className="flex gap-1">
-                  {socialPlatforms.slice(0, 6).map((p) => (
-                    <button
-                      key={p.value}
-                      type="button"
-                      className="rounded-lg border border-[var(--border)] px-2 py-1 text-xs font-medium text-[var(--ink)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--accent)]"
-                      onClick={() => editor.addSocial(p.value)}
-                      aria-label={`Add ${p.label}`}
-                    >
-                      {p.label}
-                    </button>
+              </CardHeader>
+              <CardBody className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  {socialPlatforms.map((platform) => (
+                    <Button key={platform.value} variant="secondary" size="sm" onClick={() => editor.addSocial(platform.value)}>{platform.label}</Button>
                   ))}
                 </div>
-              </CardHeader>
-              <CardBody className="space-y-2">
                 {editor.socialLinks.length === 0 ? (
-                  <div className="border border-dashed border-[var(--border)] rounded-xl py-8 text-center text-sm text-[var(--muted)]">
-                    <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--brand)]">
-                      <SocialIconComp platform="twitter" size={20} />
-                    </div>
-                    <p>Connect social profiles so visitors can follow you.</p>
-                  </div>
+                  <div className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center text-sm text-[var(--muted)]">Add the social profiles you want visitors to find.</div>
                 ) : (
-                  <ul className="space-y-2">
-                    {editor.socialLinks.map((social) => (
-                      <SocialBlockItem
-                        key={social.id}
-                        social={social}
-                        expanded={expandedSocial === social.id}
-                        onToggle={() => setExpandedSocial((v) => (v === social.id ? null : social.id))}
-                        onUpdate={(patch) => editor.updateSocial(social.id, patch)}
-                        onRemove={() => editor.removeSocial(social.id)}
-                      />
-                    ))}
-                  </ul>
+                  editor.socialLinks.map((social) => <SocialEditorItem key={social.id} social={social} onUpdate={(patch) => editor.updateSocial(social.id, patch)} onRemove={() => editor.removeSocial(social.id)} />)
                 )}
               </CardBody>
             </Card>
           )}
 
-          {/* look & feel */}
           {activeTab === "look" && (
-            <LookTab
-              appearance={editor.appearance}
-              onAppearanceChange={(patch) => editor.setAppearance((prev) => ({ ...prev, ...patch }))}
-            />
+            <div className="space-y-3">
+              {editor.tier === "free" && <p className="rounded-lg border border-[var(--border)] bg-[var(--color-brand-soft)] p-3 text-xs text-[var(--brand)]">Free includes Minimal, Clean and Soft themes. Premium themes remain visible in the product but require Pro.</p>}
+              <LookTab appearance={editor.appearance} onAppearanceChange={updateAppearance} />
+            </div>
           )}
         </div>
 
-        {/* preview */}
-        <div className="flex flex-col gap-6">
-          {/* preview */}
+        <aside className="lg:sticky lg:top-20 lg:self-start">
           <Card variant="bordered">
-            <CardHeader>
-              <CardTitle>Preview</CardTitle>
-              <div className="flex gap-2">
-                <Pill variant={editor.tier === "pro" ? "accent" : "default"}>
-                  {editor.tier === "pro" ? "Pro · no branding" : "Free · branding"}
-                </Pill>
-              </div>
-            </CardHeader>
+            <CardHeader><CardTitle>Live preview</CardTitle></CardHeader>
             <CardBody className="flex justify-center">
-              <FeaturedPreview />
+              <FeaturedPreview pageOverride={previewPage} />
             </CardBody>
           </Card>
-        </div>
+        </aside>
       </div>
     </div>
   );
 }
 
-function ProfileSection({ editor }: { editor: ReturnType<typeof useEditorState> }) {
+function ProfileEditor({ editor }: { editor: ReturnType<typeof useEditorState> }) {
+  const initials = editor.profile.name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "??";
   return (
     <Card variant="bordered">
-      <CardHeader>
-        <CardTitle>Profile</CardTitle>
-      </CardHeader>
+      <CardHeader><CardTitle>Profile</CardTitle></CardHeader>
       <CardBody className="space-y-4">
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-white text-xl font-semibold shadow-sm">
-            {editor.profile.avatarUrl ? (
-              <Image
-                src={editor.profile.avatarUrl}
-                alt=""
-                width={64}
-                height={64}
-                unoptimized
-                className="h-full w-full rounded-full object-cover"
-              />
-            ) : (
-              <span>
-                {editor.profile.name
-                  .split(" ")
-                  .filter(Boolean)
-                  .slice(0, 2)
-                  .map((s) => s[0]?.toUpperCase() ?? "")
-                  .join("") ?? "??"}
-              </span>
-            )}
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--accent)] text-lg font-semibold text-white">
+            {editor.profile.avatarUrl ? <Image src={editor.profile.avatarUrl} alt="" width={64} height={64} unoptimized className="h-full w-full object-cover" /> : initials}
           </div>
-          <div className="flex-1 space-y-2">
-            <Input
-              label="Display name"
-              value={editor.profile.name}
-              onChange={(e) => editor.setProfile((p) => ({ ...p, name: e.target.value }))}
-              placeholder="Your name"
-            />
+          <div className="grid flex-1 gap-3 sm:grid-cols-2">
+            <Input label="Display name" value={editor.profile.name} onChange={(e) => editor.setProfile((current) => ({ ...current, name: e.target.value }))} placeholder="Your name" />
             <Input
               label="Username"
-              value={editor.profile.username}
-              onChange={(e) => editor.setSlug(e.target.value)}
+              value={editor.slug}
+              onChange={(e) => {
+                const next = normalizeSlug(e.target.value);
+                editor.setSlug(next);
+                editor.setProfile((current) => ({ ...current, username: next }));
+              }}
               placeholder="username"
-              hint="Used in your public page URL."
+              hint="Controls your /u/username URL."
             />
           </div>
         </div>
-
-        <Input
-          label="Headline"
-          value={editor.profile.headline}
-          onChange={(e) => editor.setProfile((p) => ({ ...p, headline: e.target.value }))}
-          placeholder="What you do in one line"
-        />
-        <Input
-          label="Bio"
-          value={editor.profile.bio}
-          onChange={(e) => editor.setProfile((p) => ({ ...p, bio: e.target.value }))}
-          placeholder="A short bio for your visitors"
-          hint="Appears under your name on your public page."
-        />
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            label="Location"
-            value={editor.profile.location ?? ""}
-            onChange={(e) => editor.setProfile((p) => ({ ...p, location: e.target.value || undefined }))}
-            placeholder="City, country"
-          />
-          <Input
-            label="Role"
-            value={editor.profile.role ?? ""}
-            onChange={(e) => editor.setProfile((p) => ({ ...p, role: e.target.value || undefined }))}
-            placeholder="Role or title"
-          />
+        <Input label="Headline" value={editor.profile.headline} onChange={(e) => editor.setProfile((current) => ({ ...current, headline: e.target.value }))} placeholder="What you do in one line" />
+        <Textarea label="Bio" value={editor.profile.bio} onChange={(e) => editor.setProfile((current) => ({ ...current, bio: e.target.value }))} placeholder="A short introduction" className="min-h-[110px]" />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Input label="Location" value={editor.profile.location ?? ""} onChange={(e) => editor.setProfile((current) => ({ ...current, location: e.target.value || undefined }))} placeholder="City, country" />
+          <Input label="Role" value={editor.profile.role ?? ""} onChange={(e) => editor.setProfile((current) => ({ ...current, role: e.target.value || undefined }))} placeholder="Role or title" />
         </div>
-        <Input
-          label="Avatar URL"
-          type="url"
-          value={editor.profile.avatarUrl ?? ""}
-          onChange={(e) => editor.setProfile((p) => ({ ...p, avatarUrl: e.target.value || undefined }))}
-          placeholder="https://example.com/avatar.jpg"
-          hint="Optional. Leave blank to show initials."
-        />
+        <Input label="Avatar URL" type="url" value={editor.profile.avatarUrl ?? ""} onChange={(e) => editor.setProfile((current) => ({ ...current, avatarUrl: e.target.value || undefined }))} placeholder="https://example.com/avatar.jpg" />
       </CardBody>
     </Card>
   );
 }
 
-function LinkBlockItem({
-  link,
-  total,
-  expanded,
-  onToggle,
-  onUpdate,
-  onRemove,
-  onMove,
-}: {
-  link: { id: string; type: "link" | "social" | "featured"; title: string; url?: string; description?: string; visible: boolean; order: number };
+function LinkEditorItem({ link, total, onUpdate, onRemove, onMove }: {
+  link: LinkBlock;
   total: number;
-  expanded: boolean;
-  onToggle: () => void;
-  onUpdate: (patch: Partial<typeof link>) => void;
+  onUpdate: (patch: Partial<LinkBlock>) => void;
   onRemove: () => void;
-  onMove: (to: number) => void;
+  onMove: (index: number) => void;
 }) {
-  const [localType, setLocalType] = useState<typeof link.type>(link.type);
-  const [localTitle, setLocalTitle] = useState(link.title);
-  const [localUrl, setLocalUrl] = useState(link.url ?? "");
-  const [localDescription, setLocalDescription] = useState(link.description ?? "");
-
-  const chevron = (
-    <ChevronDownIcon
-      size={16}
-      className={`shrink-0 transition-transform duration-150 ${expanded ? "rotate-180" : ""}`}
-    />
-  );
-
+  const [open, setOpen] = useState(false);
   return (
     <div className="rounded-xl border border-[var(--border)] bg-white">
-      <button
-        type="button"
-        className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-        onClick={onToggle}
-        aria-expanded={expanded}
-      >
-        <button
-          type="button"
-          className="cursor-grab shrink-0 rounded-full border border-transparent p-0.5 transition-colors hover:border-[var(--border)] hover:bg-[var(--color-brand-soft)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-          aria-label="Drag to reorder"
-        >
-          <GripVerticalIcon size={16} />
+      <div className="flex items-center gap-2 p-3">
+        <button type="button" onClick={() => setOpen((value) => !value)} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 text-left focus-visible:outline-2 focus-visible:outline-[var(--accent)]" aria-expanded={open}>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-brand-soft)] text-[var(--brand)]"><LinkIcon size={17} /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold text-[var(--ink)]">{link.title || "Untitled link"}</span>
+            <span className="block truncate text-xs text-[var(--muted)]">{link.type}{link.url ? ` · ${link.url}` : ""}</span>
+          </span>
         </button>
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--muted)]">
-          {localType === "featured" ? (
-            <FeaturedIcon size={18} />
-          ) : localType === "social" ? (
-            <SocialIconComp platform="twitter" size={18} />
-          ) : (
-            <LinkIcon size={18} />
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-[var(--ink)]">
-            {localTitle || "Untitled link"}
-          </p>
-          {localDescription && <p className="truncate text-xs text-[var(--muted)]">{localDescription}</p>}
-        </div>              <Badge variant={localType === "featured" ? "warning" : localType === "social" ? "info" : "default"}>
-          {localType}
-        </Badge>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            className={`rounded-full p-1 text-[var(--muted)] transition-colors hover:text-[var(--ink)] hover:bg-[var(--color-brand-soft)] ${link.visible ? "" : "opacity-50"}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onUpdate({ visible: !link.visible });
-            }}
-            aria-label={link.visible ? "Hide link" : "Show link"}
-            aria-pressed={!link.visible}
-          >
-            {link.visible ? <EyeIcon size={16} /> : <EyeOffIcon size={16} />}
-          </button>
-          <button
-            type="button"
-            className="rounded-full p-1 text-[var(--muted)] transition-colors hover:text-red-600 hover:bg-red-50"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove();
-            }}
-            aria-label="Remove link"
-          >
-            <TrashIcon size={16} />
-          </button>
-          {chevron}
-        </div>
-      </button>
+        <button type="button" onClick={() => onUpdate({ visible: !link.visible })} className="rounded-full p-2 text-[var(--muted)] hover:bg-[var(--color-brand-soft)]" aria-label={link.visible ? "Hide link" : "Show link"}>{link.visible ? <EyeIcon size={16} /> : <EyeOffIcon size={16} />}</button>
+        <button type="button" onClick={onRemove} className="rounded-full p-2 text-red-600 hover:bg-red-50" aria-label="Remove link"><TrashIcon size={16} /></button>
+      </div>
 
-      {expanded && (
-        <div className="border-t border-[var(--border)] px-4 py-4 space-y-4">
-          <Select
-            label="Link type"
-            value={localType}
-            options={linkTypeOptions.map((o) => ({ value: o.value, label: o.label }))}
-            onChange={(e) => {
-              const next = e.target.value as typeof link.type;
-              setLocalType(next);
-              onUpdate({ type: next });
-            }}
-          />
-          <Input
-            label="Title"
-            value={localTitle}
-            onChange={(e) => {
-              setLocalTitle(e.target.value);
-              onUpdate({ title: e.target.value });
-            }}
-            placeholder="Link title"
-          />
-          <Input
-            label="URL"
-            type="url"
-            value={localUrl}
-            onChange={(e) => {
-              setLocalUrl(e.target.value);
-              onUpdate({ url: e.target.value || undefined });
-            }}
-            placeholder="https://..."
-            hint="The link visitors will open."
-          />
-          <Input
-            label="Description"
-            value={localDescription}
-            onChange={(e) => {
-              setLocalDescription(e.target.value);
-              onUpdate({ description: e.target.value || undefined });
-            }}
-            placeholder="Short description"
-          />
-
-          <div className="flex items-center justify-between border-t border-[var(--border)] pt-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-[var(--muted)]"
-              disabled={link.order <= 0}
-              onClick={() => onMove(Math.max(0, link.order - 1))}
-            >
-              Move up
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-[var(--muted)]"
-              disabled={link.order >= total - 1}
-              onClick={() => onMove(Math.min(total - 1, link.order + 1))}
-            >
-              Move down
-            </Button>
+      {open && (
+        <div className="space-y-4 border-t border-[var(--border)] p-4">
+          <Select label="Block type" value={link.type} options={linkTypeOptions.map((item) => ({ value: item.value, label: item.label }))} onChange={(e) => onUpdate({ type: e.target.value as LinkBlock["type"] })} />
+          <Input label="Title" value={link.title} onChange={(e) => onUpdate({ title: e.target.value })} placeholder="Portfolio" />
+          <Input label="URL" type="url" value={link.url ?? ""} onChange={(e) => onUpdate({ url: e.target.value || undefined })} placeholder="https://example.com" />
+          <Textarea label="Description" value={link.description ?? ""} onChange={(e) => onUpdate({ description: e.target.value || undefined })} placeholder="Optional description" />
+          <div className="flex justify-between gap-2 border-t border-[var(--border)] pt-3">
+            <Button variant="ghost" size="sm" disabled={link.order <= 0} onClick={() => onMove(link.order - 1)}>Move up</Button>
+            <Button variant="ghost" size="sm" disabled={link.order >= total - 1} onClick={() => onMove(link.order + 1)}>Move down</Button>
           </div>
         </div>
       )}
@@ -492,66 +236,13 @@ function LinkBlockItem({
   );
 }
 
-function SocialBlockItem({
-  social,
-  expanded,
-  onToggle,
-  onUpdate,
-  onRemove,
-}: {
-  social: { id: string; platform: string; handle: string; url?: string };
-  expanded: boolean;
-  onToggle: () => void;
-  onUpdate: (patch: Partial<typeof social>) => void;
-  onRemove: () => void;
-}) {
-  const [localHandle, setLocalHandle] = useState(social.handle);
-  const chevron = (
-    <ChevronDownIcon size={16} className={`shrink-0 transition-transform duration-150 ${expanded ? "rotate-180" : ""}`} />
-  );
-
+function SocialEditorItem({ social, onUpdate, onRemove }: { social: SocialLink; onUpdate: (patch: Partial<SocialLink>) => void; onRemove: () => void }) {
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-white">
-      <button
-        type="button"
-        className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-        onClick={onToggle}
-        aria-expanded={expanded}
-      >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--muted)]">
-          <SocialIconComp platform={social.platform} size={18} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-[var(--ink)] capitalize">{social.platform}</p>
-          <p className="truncate text-xs text-[var(--muted)]">{localHandle || `@ handle`}</p>
-        </div>
-        {chevron}
-      </button>
-
-      {expanded && (
-        <div className="border-t border-[var(--border)] px-4 py-4 space-y-4">
-          <Input
-            label="Handle"
-            value={localHandle}
-            onChange={(e) => {
-              setLocalHandle(e.target.value);
-              onUpdate({ handle: e.target.value });
-            }}
-            placeholder={`@${social.platform}`}
-          />
-          <Input
-            label="Profile URL"
-            type="url"
-            value={social.url ?? ""}
-            onChange={(e) => onUpdate({ url: e.target.value || undefined })}
-            placeholder="https://..."
-            hint="Optional custom link."
-          />
-          <div className="flex justify-end border-t border-[var(--border)] pt-3">
-            <Button variant="danger" size="sm" onClick={onRemove}>Remove</Button>
-          </div>
-        </div>
-      )}
+    <div className="grid gap-3 rounded-xl border border-[var(--border)] bg-white p-4 sm:grid-cols-[160px_1fr_1fr_auto] sm:items-end">
+      <div className="flex min-h-10 items-center gap-2 text-sm font-semibold capitalize text-[var(--ink)]"><SocialIcon platform={social.platform} size={18} />{social.platform}</div>
+      <Input label="Handle" value={social.handle} onChange={(e) => onUpdate({ handle: e.target.value })} placeholder="@handle" />
+      <Input label="Profile URL" type="url" value={social.url ?? ""} onChange={(e) => onUpdate({ url: e.target.value || undefined })} placeholder="https://..." />
+      <Button variant="danger" size="sm" onClick={onRemove}>Remove</Button>
     </div>
   );
 }
