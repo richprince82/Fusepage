@@ -1,4 +1,4 @@
-import { type PageTheme, type PageAppearance } from "@/types";
+import { type PageTheme, type PageAppearance, type PageStyle } from "@/types";
 
 const THEME_TOKENS: Record<
   PageTheme,
@@ -14,18 +14,43 @@ const THEME_TOKENS: Record<
   mono: { bg: "#fafafa", surface: "#ffffff", text: "#000000", muted: "#525252", accent: "#18181b", border: "#e4e4e7" },
 };
 
+const STYLE_RADIUS: Record<PageStyle, string> = {
+  "rounded-soft": "18px",
+  "sharp-modern": "6px",
+  "card-elegant": "24px",
+  "list-minimal": "0px",
+};
+
 export function appearanceTokens(appearance: PageAppearance) {
   const base = THEME_TOKENS[appearance.theme] ?? THEME_TOKENS.clean;
+  const safeImage = appearance.backgroundImageUrl?.trim();
+
+  let bg = base.bg;
+  if (appearance.background === "gradient") {
+    bg = `linear-gradient(135deg, ${appearance.accentColor}24, ${appearance.textColor}0d), ${base.bg}`;
+  } else if (appearance.background === "image" && safeImage) {
+    bg = `linear-gradient(rgba(255,255,255,0.08), rgba(255,255,255,0.08)), url("${safeImage.replace(/"/g, "%22")}") center / cover fixed`;
+  }
+
   return {
     ...base,
     accent: appearance.accentColor,
     text: appearance.textColor,
-    bg: appearance.background === "gradient"
-      ? `linear-gradient(135deg, ${appearance.accentColor}11, ${appearance.textColor}08)`
-      : base.bg,
-    surface: appearance.background === "gradient" ? "#ffffff" : base.surface,
-    border: appearance.background === "gradient" ? "#e5e7eb" : base.border,
+    bg,
+    surface: base.surface,
+    border: base.border,
+    radius: STYLE_RADIUS[appearance.style] ?? STYLE_RADIUS["rounded-soft"],
   };
+}
+
+export function buttonAppearanceStyle(appearance: PageAppearance, tokens: ReturnType<typeof appearanceTokens>) {
+  if (appearance.buttonStyle === "outlined") {
+    return { background: "transparent", color: tokens.text, borderColor: tokens.accent };
+  }
+  if (appearance.buttonStyle === "ghost") {
+    return { background: "transparent", color: tokens.accent, borderColor: "transparent" };
+  }
+  return { background: tokens.surface, color: tokens.text, borderColor: tokens.border };
 }
 
 export function themePreset(theme: PageTheme) {
